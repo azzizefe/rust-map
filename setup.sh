@@ -7,6 +7,12 @@ set -e
 
 echo "📍 Starting GeoPic Setup for Linux..."
 
+# Check Internet Connectivity
+if ! ping -c 1 google.com &> /dev/null; then
+    echo "⚠️ No internet connection detected. Please check your network."
+    exit 1
+fi
+
 # Detect OS
 if [ -f /etc/os-release ]; then
     . /etc/os-release

@@ -1,7 +1,6 @@
 use std::env;
-use std::fs::File;
-use std::io::BufReader;
-use exif::{In, Tag, Value};
+use std::path::Path;
+use nom_exif::{MediaParser, MediaSource, ExifIter};
 use reqwest::header::USER_AGENT;
 use serde::Deserialize;
 use colored::*;
@@ -13,6 +12,8 @@ struct NominatimResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    print_banner();
+
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("{}", "Error: No photo path provided.".red().bold());
@@ -21,95 +22,73 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let file_path = &args[1];
+    if !Path::new(file_path).exists() {
+        println!("{} {}", "❌ File not found:".red().bold(), file_path);
+        return Ok(());
+    }
+
     println!("🔍 {} {}", "Analyzing Photo:".yellow(), file_path.blue().bold());
 
-    let file = File::open(file_path).map_err(|e| {
+    // Initialize Parser
+    let mut parser = MediaParser::new();
+    let ms = MediaSource::file_path(file_path).map_err(|e| {
         eprintln!("{} {}", "❌ Failed to open file:".red().bold(), e);
         e
     })?;
-    
-    let mut reader = BufReader::new(file);
-    let exifreader = exif::Reader::new();
-    
-    let exif = match exifreader.read_from_container(&mut reader) {
-        Ok(exif) => exif,
+
+    let iter: ExifIter = match parser.parse(ms) {
+        Ok(iter) => iter,
         Err(e) => {
-            println!("{} {}", "❌ Error reading EXIF data:".red().bold(), e);
-            println!("{}", "Note: This image might not have metadata (many social media apps strip it).".white().italic());
+            println!("{} {}", "❌ Error parsing metadata:".red().bold(), e);
+            println!("{}", "Note: This image might not have EXIF headers or the format is unsupported.".white().italic());
             return Ok(());
         }
     };
 
     println!("\n--- {} ---", "EXTRACTED GPS DATA".bold().cyan());
 
-    let lat_data = get_gps_data(&exif, Tag::GPSLatitude, Tag::GPSLatitudeRef);
-    let lon_data = get_gps_data(&exif, Tag::GPSLongitude, Tag::GPSLongitudeRef);
-    let altitude = get_altitude(&exif);
-    let direction = get_tag_value(&exif, Tag::GPSImgDirection);
-    let date = get_tag_value(&exif, Tag::GPSDateStamp);
-    let time = get_tag_value(&exif, Tag::GPSTimeStamp);
+    // nom-exif 2.0+ provides a helper for GPS info
+    if let Some(gps_info) = iter.parse_gps_info().ok().flatten() {
+        let lat = convert_latlng(&gps_info.latitude, gps_info.latitude_ref);
+        let lon = convert_latlng(&gps_info.longitude, gps_info.longitude_ref);
 
-    match (lat_data, lon_data) {
-        (Some((lat_dms, lat_dec)), Some((lon_dms, lon_dec))) => {
-            println!("📌 {}:  {}", "Latitude".green(), lat_dms.cyan());
-            println!("📌 {}: {}", "Longitude".green(), lon_dms.cyan());
-            println!("🔢 {}:   {:.6}, {:.6}", "Decimal".green(), lat_dec, lon_dec);
+        println!("📌 {}:  {:.6}", "Latitude".green(), lat);
+        println!("📌 {}: {:.6}", "Longitude".green(), lon);
 
-            if let Some(alt) = altitude {
-                println!("⛰️ {}:  {}", "Altitude".green(), alt.cyan());
-            }
-            if let Some(dir) = direction {
-                println!("🧭 {}: {}", "Direction".green(), dir.cyan());
-            }
-            if let (Some(d), Some(t)) = (date, time) {
-                println!("📅 {}:      {} {}", "GPS Time".green(), d.cyan(), t.cyan());
-            }
+        let a = gps_info.altitude;
+        let alt_val = a.0 as f64 / a.1 as f64;
+        println!("⛰️ {}:  {:.2}m", "Altitude".green(), alt_val);
 
-            lookup_address(lat_dec, lon_dec).await?;
-        }
-        _ => {
-            println!("{}", "⚠️ No GPS coordinates found in image metadata.".yellow().bold());
-            println!("{}", "Tip: Use photos taken directly from a camera app (iPhone/Android).".white().italic());
-        }
+        lookup_address(lat, lon).await?;
+    } else {
+        println!("{}", "⚠️ No GPS coordinates found in image metadata.".yellow().bold());
+        println!("{}", "Note: Social media (WhatsApp/Instagram) and 'Save for Web' options strip this data.".white());
     }
 
     Ok(())
 }
 
-fn get_gps_data(exif: &exif::Exif, tag: Tag, ref_tag: Tag) -> Option<(String, f64)> {
-    let field = exif.get_field(tag, In::PRIMARY)?;
-    let ref_field = exif.get_field(ref_tag, In::PRIMARY)?;
-    
-    let dms_str = format!("{} {}", field.display_value(), ref_field.display_value());
-    
-    if let Value::Rational(rationals) = &field.value {
-        if rationals.len() >= 3 {
-            let degrees = rationals[0].to_f64();
-            let minutes = rationals[1].to_f64();
-            let seconds = rationals[2].to_f64();
+fn convert_latlng(ll: &nom_exif::LatLng, ref_char: char) -> f64 {
+    let d = ll.0.0 as f64 / ll.0.1 as f64;
+    let m = ll.1.0 as f64 / ll.1.1 as f64;
+    let s = ll.2.0 as f64 / ll.2.1 as f64;
 
-            let mut decimal = degrees + (minutes / 60.0) + (seconds / 3600.0);
-            let ref_val = ref_field.display_value().to_string();
-            if ref_val.contains('S') || ref_val.contains('W') {
-                decimal = -decimal;
-            }
-            return Some((dms_str, decimal));
-        }
+    let mut res = d + (m / 60.0) + (s / 3600.0);
+    if ref_char == 'S' || ref_char == 'W' {
+        res = -res;
     }
-    None
+    res
 }
 
-fn get_altitude(exif: &exif::Exif) -> Option<String> {
-    let alt = exif.get_field(Tag::GPSAltitude, In::PRIMARY)?;
-    let ref_val = exif.get_field(Tag::GPSAltitudeRef, In::PRIMARY)
-        .map(|f| f.display_value().to_string())
-        .unwrap_or_else(|| "Above Sea Level".to_string());
-    
-    Some(format!("{} ({})", alt.display_value(), ref_val))
-}
-
-fn get_tag_value(exif: &exif::Exif, tag: Tag) -> Option<String> {
-    exif.get_field(tag, In::PRIMARY).map(|f| f.display_value().to_string())
+fn print_banner() {
+    println!("{}", "===============================================".dimmed());
+    println!("{}", "   GeoPic - High Precision Location Finder     ".bold().green());
+    println!("{}", "===============================================".dimmed());
+    println!("{}", "⚖️  PRIVACY & ETHICS NOTICE:".bold().yellow());
+    println!("{}", "- Use this tool only on photos you own or have permission for.");
+    println!("{}", "- Do not use for stalking, harassment, or doxing.");
+    println!("{}", "- Respect local laws regarding geolocation data privacy.");
+    println!("{}\n", "===============================================".dimmed());
 }
 
 async fn lookup_address(lat: f64, lon: f64) -> Result<(), Box<dyn std::error::Error>> {
@@ -126,7 +105,7 @@ async fn lookup_address(lat: f64, lon: f64) -> Result<(), Box<dyn std::error::Er
 
     let res = client
         .get(url)
-        .header(USER_AGENT, "GeoPic-Official-Linux-Tool/1.0 (Contact: efe-rust-dev)")
+        .header(USER_AGENT, "GeoPic-Official-Linux-Tool/2.0 (Contact: efe-rust-dev)")
         .send()
         .await;
 
@@ -137,18 +116,18 @@ async fn lookup_address(lat: f64, lon: f64) -> Result<(), Box<dyn std::error::Er
                 println!("✅ {}","Exact Address:".green().bold());
                 println!("{}", json.display_name.white().bold());
                 
-                println!("\n🔗 {}","System Shortcut:".blue().bold());
+                println!("\n🔗 {}","Open Maps:".blue().bold());
                 println!("   Google Maps: https://www.google.com/maps?q={},{}", lat, lon);
                 println!("   OSM:         https://www.openstreetmap.org/?mlat={}&mlon={}", lat, lon);
             } else if response.status() == 429 {
-                println!("{}", "❌ Rate Limit Hit: Too many requests. Please wait a minute.".red().bold());
+                println!("{}", "❌ Rate Limit Hit: Nominatim API is busy. Please try again in 1 minute.".red().bold());
             } else {
                 println!("{} {}", "❌ API Error:".red().bold(), response.status());
             }
         }
         Err(e) => {
             if e.is_timeout() {
-                println!("{}", "❌ Connection Timeout: The server took too long to respond.".red().bold());
+                println!("{}", "❌ Connection Timeout: API took too long to respond.".red().bold());
             } else {
                 println!("{} {}", "❌ Network Error:".red().bold(), e);
             }
