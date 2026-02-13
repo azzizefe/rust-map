@@ -4,21 +4,25 @@ GeoPic, Kali Linux üzerinde sızma testleri ve adli bilişim (forensics) çalı
 
 ## 📥 Kali Üzerinde Hızlı Kurulum
 
-Kali'nin resmi depolarıyla tam uyumluluk sağlamak için şu adımları izleyin:
+Aşağıdaki komutları sırasıyla terminale yapıştırarak kurulumu tamamlayabilirsiniz:
 
 ```bash
-# 1. Depoyu indirin ve klasöre girin
-# git clone <repo_url> && cd rust-map
+# 1. Depoyu klonlayın ve içine girin 
+# (Zaten klasörün içindeyseniz bu adımı geçebilirsiniz)
+git clone https://github.com/azzizefe/rust-map.git
+cd rust-map
 
-# 2. Kurulum scriptini çalıştırın (Tüm forensics araçlarını kurar)
+# 2. Kurulum betiğini çalıştırın (Otomatik bağımlılık ve derleme)
 chmod +x setup.sh
 ./setup.sh
 
-# 3. GeoPic'i sistem geneline kurun (Opsiyonel)
+# 3. GeoPic'i sisteme tanıtın (geopic komutunu her yerden kullanmak için)
 sudo make install
 ```
 
-## 🚀 OSINT ve Adli Bilişim Kullanım Senaryoları
+## 🚀 Çalıştırma Komutları
+
+Kurulum bittikten sonra şu şekilde kullanabilirsiniz:
 
 ### 1. Kanıt Klasörünü Toplu Tarama
 Ele geçirilen bir görsel klasöründeki tüm konum verilerini çıkarıp Excel raporu oluşturun:
