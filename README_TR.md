@@ -1,9 +1,9 @@
-# GeoPic: Fotoğraf Konum Bulucu 📍
+# GeoPic: Fotoğraf Konum Bulucu 📍 ![Kali Linux Ready](https://img.shields.io/badge/Kali-Ready-green?logo=kali-linux&logoColor=white)
 
 GeoPic, fotoğraflardan yüksek hassasiyetli GPS koordinatlarını çıkaran ve bu koordinatları OpenStreetMap kullanarak gerçek adreslere dönüştüren güçlü bir Rust tabanlı komut satırı aracıdır.
 
-## 🚀 Özellikler
-- **🎨 Renkli Arayüz**: Linux terminalleri için optimize edilmiş, kolay okunabilir çıktı.
+- [x] **Kali Linux Desteği**: Sızma testleri ve OSINT çalışmaları için `kali.me` rehberi.
+- [x] **🎨 Renkli Arayüz**: Linux terminalleri için optimize edilmiş, kolay okunabilir çıktı.
 - **📱 HEIC Desteği**: iPhone (HEIC/HEIF) ve modern tüm fotoğraf formatlarını destekler.
 - **🌐 Kesin Adres**: Koordinatları Nominatim API üzerinden sokak detaylarına kadar çevirir.
 - **💾 Teknik Detaylar**: Kamera markası, modeli, lens bilgisi ve pozlama değerlerini gösterir.
@@ -44,9 +44,24 @@ Eğer `make install` yaptıysanız:
 ```bash
 geopic path/to/photo.jpg
 ```
-Aksi halde release binary dosyasını çalıştırın:
+
+**🚀 Toplu İşleme (Batch Processing):**
+Bir klasördeki tüm fotoğrafları otomatik olarak tarar:
 ```bash
-./target/release/rust-map path/to/photo.jpg
+geopic ./fotalar --batch
+```
+
+**💾 Veri Dışa Aktarma (Export):**
+Sonuçları profesyonel rapor formatında kaydeder (.json veya .csv):
+```bash
+geopic ./fotalar --batch --output rapor.csv
+geopic ./fotalar --batch --output veriler.json
+```
+
+**🔍 Derin Tarama (Deep Scan):**
+Eğer standart analiz yetersiz kalırsa:
+```bash
+geopic path/to/photo.jpg --deep
 ```
 
 **İngilizce çıktı için:**
@@ -56,9 +71,10 @@ geopic path/to/photo.jpg --en
 
 ## ⚙️ Nasıl Çalışır?
 1. **Çıkarma**: `nom-exif` kütüphanesi ile fotoğrafın EXIF başlıkları taranır.
-2. **Dönüştürme**: Karmaşık rasyonel GPS verileri (Derece, Dakika, Saniye) yüksek hassasiyetli ondalık koordinatlara çevrilir.
-3. **Sorgulama**: Elde edilen koordinatlar OpenStreetMap Nominatim sunucularına gönderilerek en yakın kayıtlı adres bilgisi çekilir.
-4. **Teknik Veri**: Kameranın donanım bilgileri (Lens, ISO, Diyafram) ayıklanarak raporlanır.
+2. **Toplu İşleme**: `walkdir` ile klasörler taranır, her fotoğraf için 1 saniye API bekleme süresi uygulanır.
+3. **Dönüştürme**: Karmaşık rasyonel GPS verileri yüksek hassasiyetli ondalık koordinatlara çevrilir.
+4. **Sorgulama**: Adres bilgisi Nominatim üzerinden çekilir.
+5. **Raporlama**: `indicatif` ile ilerleme çubuğu gösterilir ve veriler JSON/CSV olarak paketlenir.
 
 ## ⚖️ Gizlilik ve Etik
 Bu araç eğitim ve kişisel kullanım için tasarlanmıştır.

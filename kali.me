@@ -1,0 +1,47 @@
+# 🐉 GeoPic x Kali Linux OSINT Guide
+
+GeoPic, Kali Linux üzerinde sızma testleri ve adli bilişim (forensics) çalışmaları için tam optimize edilmiştir.
+
+## 📥 Kali Üzerinde Hızlı Kurulum
+
+Kali'nin resmi depolarıyla tam uyumluluk sağlamak için şu adımları izleyin:
+
+```bash
+# 1. Depoyu indirin ve klasöre girin
+# git clone <repo_url> && cd rust-map
+
+# 2. Kurulum scriptini çalıştırın (Tüm forensics araçlarını kurar)
+chmod +x setup.sh
+./setup.sh
+
+# 3. GeoPic'i sistem geneline kurun (Opsiyonel)
+sudo make install
+```
+
+## 🚀 OSINT ve Adli Bilişim Kullanım Senaryoları
+
+### 1. Kanıt Klasörünü Toplu Tarama
+Ele geçirilen bir görsel klasöründeki tüm konum verilerini çıkarıp Excel raporu oluşturun:
+```bash
+geopic ./kanitlar --batch --output adli_rapor.csv
+```
+
+### 2. Derin Analiz (ExifTool Entegrasyonu)
+Kali'de yüklü olan `exiftool`'u kullanarak en gizli meta verileri bile gün yüzüne çıkarın:
+```bash
+geopic süpheli_görsel.jpg --deep
+```
+
+### 3. Gizlilik Modu (İngilizce Çıktı)
+Raporlarınızı uluslararası standartlarda tutmak için:
+```bash
+geopic foto.jpg --en
+```
+
+## 🛡️ Kali Kullanıcıları İçin İpuçları
+- **Proxychains**: Eğer anonim kalmak istiyorsanız `proxychains geopic ...` şeklinde çalıştırabilirsiniz (Nominatim API sorguları için).
+- **Format Desteği**: Sadece JPG değil, Kali'de sık karşılaşacağınız `HEIC` ve `TIFF` formatlarını da destekler.
+- **KML Çıktısı**: Gelecek sürümlerde Google Earth / Marble entegrasyonu için doğrudan KML desteği eklenecektir.
+
+---
+*Mutlu Avlar! 🐉*

@@ -23,18 +23,18 @@ else
 fi
 
 case $OS in
-    ubuntu|debian|pop|mint)
+    ubuntu|debian|pop|mint|kali)
         echo "📦 detected $OS. Installing dependencies via apt..."
         sudo apt update
-        sudo apt install -y pkg-config libssl-dev build-essential ca-certificates
+        sudo apt install -y pkg-config libssl-dev build-essential ca-certificates libimage-exiftool-perl
         ;;
     fedora)
         echo "📦 detected $OS. Installing dependencies via dnf..."
-        sudo dnf install -y pkg-config openssl-devel
+        sudo dnf install -y pkg-config openssl-devel perl-Image-ExifTool
         ;;
     arch)
         echo "📦 detected $OS. Installing dependencies via pacman..."
-        sudo pacman -S --noconfirm pkgconf openssl base-devel
+        sudo pacman -S --noconfirm pkgconf openssl base-devel perl-image-exiftool
         ;;
     *)
         echo "⚠️ OS not recognized. Please ensure pkg-config and openssl-dev are installed."
